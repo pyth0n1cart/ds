@@ -1,0 +1,20 @@
+{
+  "name": "discord-mass-dm-bot",
+  "version": "1.0.0",
+  "description": "Discord bot for sending a custom DM to all server members by one command",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "nodejs"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.19.3",
+    "dotenv": "^16.6.1"
+  }
+}

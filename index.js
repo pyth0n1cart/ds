@@ -189,21 +189,48 @@ async function notifyModerators(guild, content) {
   }
 }
 
-async function createDiscussionThread(message, applicant) {
-  const thread = await message.startThread({
-    name: `Заявка-${applicant.user.username}`,
-    autoArchiveDuration: 1440
+async function createDiscussionChannel(guild, applicant, sourceChannel) {
+  const categoryId = process.env.APPLICATION_CATEGORY_ID || sourceChannel.parentId;
+  const applicantChannelName = `заявка-${applicant.user.username}`
+    .toLowerCase()
+    .replace(/[^a-z0-9а-яё_-]/gi, "-")
+    .slice(0, 90);
+
+  const channel = await guild.channels.create({
+    name: applicantChannelName || `заявка-${applicant.id}`,
+    type: ChannelType.GuildText,
+    parent: categoryId || null,
+    topic: `Канал рассмотрения заявки от ${applicant.user.tag} (${applicant.id})`,
+    permissionOverwrites: [
+      {
+        id: guild.roles.everyone.id,
+        deny: [PermissionFlagsBits.ViewChannel]
+      },
+      {
+        id: applicant.id,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory
+        ]
+      },
+      {
+        id: process.env.MODERATOR_ROLE_ID,
+        allow: [
+          PermissionFlagsBits.ViewChannel,
+          PermissionFlagsBits.SendMessages,
+          PermissionFlagsBits.ReadMessageHistory,
+          PermissionFlagsBits.ManageMessages
+        ]
+      }
+    ]
   });
 
-  try {
-    await thread.members.add(applicant.id);
-  } catch (error) {
-    // Applicant may not be addable depending on thread privacy and permissions.
-  }
-
-  await thread.send(
-    `Ветка заявки создана для ${applicant}. Пишите детали рассмотрения здесь.`
+  await channel.send(
+    `Канал заявки создан для ${applicant}. Пишите детали рассмотрения здесь.`
   );
+
+  return channel;
 }
 
 client.once("clientReady", async () => {
@@ -372,11 +399,18 @@ client.on("interactionCreate", async (interaction) => {
       const applicantMember = await interaction.guild.members.fetch(
         interaction.user.id
       );
-      await createDiscussionThread(msg, applicantMember);
+      const discussionChannel = await createDiscussionChannel(
+        interaction.guild,
+        applicantMember,
+        targetChannel
+      );
+      await targetChannel.send(
+        `Создан канал рассмотрения: ${discussionChannel} для ${interaction.user}.`
+      );
 
       await notifyModerators(
         interaction.guild,
-        `Обнаружена новая заявка Unlowed: ${msg.url}`
+        `Обнаружена новая заявка Unlowed: ${msg.url}\nКанал рассмотрения: ${discussionChannel.url}`
       );
 
       await interaction.reply({
